@@ -5,4 +5,7 @@ This repository is set up to keep track of my work progress for my BEng Computin
 ### TO-DOs
 
 - [ ] Complete the [xdp-tutorial](https://github.com/xdp-project/xdp-tutorial)
+  - [X] Basic setup lessons
+  - [ ] Packet processing lessons
+  - [ ] Advanced lessons
 - [ ] Draw an initial comparison between eBPF, netmap, and DPDK
