@@ -8,4 +8,12 @@ This repository is set up to keep track of my work progress for my BEng Computin
   - [X] Basic setup lessons
   - [ ] Packet processing lessons
   - [ ] Advanced lessons
-- [ ] Draw an initial comparison between eBPF, netmap, and DPDK
+
+|   | **eBPF** | **DPDK** | **uBPF** | **Netmap** |
+|:-:|:--------:|:--------:|:--------:|:---------:|
+| **Firewall** | - [ ]  | - [ ]  | - [ ]  | - [ ]  |
+| **L4 LB** | - [ ]  | - [ ]  | - [ ]  | - [ ]  |
+| **NAT** | - [ ]  | - [ ]  | - [ ]  | - [ ]  |
+| **DNS** | - [ ]  | - [ ]  | - [ ]  | - [ ]  |
+| **DHCP** | - [ ]  | - [ ]  | - [ ]  | - [ ]  |
+
