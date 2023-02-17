@@ -12,7 +12,7 @@ This repository is set up to keep track of my work progress for my BEng Computin
 
 ~~- [ ] Advanced lessons~~
 
-This tutorial is based on a heavily deprecated version of [libbpf](https://github.com/libbpf/libbpf). However, some concepts might still be useful.
+The xdp-tutorial mentioned above is based on a heavily deprecated version of [libbpf](https://github.com/libbpf/libbpf). However, some concepts might still be useful.
 - [ ] Update README to include info about the libbpf submodule
 - [ ] Create a universal makefile
 
