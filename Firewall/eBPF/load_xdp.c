@@ -8,18 +8,17 @@
 #include <arpa/inet.h>
 #include <netinet/in.h>
 
+#define true 1
+#define false 0
+
 #define IFNAME "xdptut-080a"
 
 #define FORBIDDEN_DST_IP "10.11.1.1"
 #define FORBIDDEN_SRC_IP "10.11.1.2"
 #define FORBIDDEN_PROTO IPPROTO_ICMP
 #define FORBIDDEN_PORT IPPORT_ECHO
-#define PATH "./eBPFirewall_kernel.o"
 
-struct boolean
-{
-    unsigned int present : 1;
-};
+#define PATH "./eBPFirewall_kernel.o"
 
 __be32 get_ip_address_in_nbo(const char *ip) {
   in_addr_t ip_addr = inet_addr(ip);
@@ -144,28 +143,27 @@ void bpf_map_update_elem_simple(const struct bpf_object *obj, const char *map_na
 
 void rule_update(const struct bpf_object *obj, const char *rule, const void *key, size_t key_size, const void *add)
 {
-    struct boolean value = {.present = *(const bool *)add};
     // probably (surely) not very (at all) safe for production
     char map_name[20] = "forbidden_";
-    bpf_map_update_elem_simple(obj, strcat(map_name, rule), key, key_size, &value, sizeof(value));
+    bpf_map_update_elem_simple(obj, strcat(map_name, rule), key, key_size, add, sizeof(_Bool));
 }
 
-void forbidden_dst_ip(const struct bpf_object *obj, const void *dst_ip, const bool add)
+void forbidden_dst_ip(const struct bpf_object *obj, const void *dst_ip, const _Bool add)
 {
     rule_update(obj, "dst_ips", dst_ip, sizeof(__be32), &add);
 }
 
-void forbidden_src_ip(const struct bpf_object *obj, const void *src_ip, const bool add)
+void forbidden_src_ip(const struct bpf_object *obj, const void *src_ip, const _Bool add)
 {
     rule_update(obj, "src_ips", src_ip, sizeof(__be32), &add);
 }
 
-void forbidden_dst_port(const struct bpf_object *obj, const void *dst_port, const bool add)
+void forbidden_dst_port(const struct bpf_object *obj, const void *dst_port, const _Bool add)
 {
     rule_update(obj, "dst_ports", dst_port, sizeof(__be16), &add);
 }
 
-void forbidden_protocol(const struct bpf_object *obj, const void *proto, const bool add)
+void forbidden_protocol(const struct bpf_object *obj, const void *proto, const _Bool add)
 {
     rule_update(obj, "protocols", proto, sizeof(__u8), &add);
 }

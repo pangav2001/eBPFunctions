@@ -8,11 +8,6 @@
 #include <arpa/inet.h>
 #include <linux/in.h>
 
-struct boolean
-{
-    unsigned int present : 1;
-};
-
 // https://docs.kernel.org/bpf/map_array.html
 // https://docs.kernel.org/bpf/maps.html
 // https://github.com/libbpf/libbpf/wiki/Libbpf:-the-road-to-v1.0#drop-support-for-legacy-bpf-map-declaration-syntax
@@ -21,7 +16,7 @@ struct
 {
     __uint(type, BPF_MAP_TYPE_HASH);
     __type(key, __be32);
-    __type(value, struct boolean);
+    __type(value, _Bool);
     __uint(max_entries, 10);
 } forbidden_src_ips SEC(".maps");
 
@@ -29,7 +24,7 @@ struct
 {
     __uint(type, BPF_MAP_TYPE_HASH);
     __type(key, __be32);
-    __type(value, struct boolean);
+    __type(value, _Bool);
     __uint(max_entries, 10);
 } forbidden_dst_ips SEC(".maps");
 
@@ -37,7 +32,7 @@ struct
 {
     __uint(type, BPF_MAP_TYPE_HASH);
     __type(key, __be16);
-    __type(value, struct boolean);
+    __type(value, _Bool);
     __uint(max_entries, 10);
 } forbidden_dst_ports SEC(".maps");
 
@@ -45,7 +40,7 @@ struct
 {
     __uint(type, BPF_MAP_TYPE_HASH);
     __type(key, __u8);
-    __type(value, struct boolean);
+    __type(value, _Bool);
     __uint(max_entries, 10);
 } forbidden_protocols SEC(".maps");
 
@@ -62,10 +57,7 @@ int xdp_firewall_prog(struct xdp_md *ctx)
     __be32 dst_ip;
     __be16 dst_port;
     __u8 protocol;
-    struct boolean *forbidden_src;
-    struct boolean *forbidden_dst;
-    struct boolean *forbidden_port;
-    struct boolean *forbidden_proto;
+    _Bool *forbidden_src, *forbidden_dst, *forbidden_port, *forbidden_proto;
 
     /* Get the IP header */
     iph = data + sizeof(*eth);
@@ -90,14 +82,14 @@ int xdp_firewall_prog(struct xdp_md *ctx)
         }
 
         /* Get the forbidden source IP from the map */
-        forbidden_src = bpf_map_lookup_elem(&forbidden_src_ips, &src_ip);
-        if (forbidden_src && forbidden_src->present)
+        forbidden_src = (_Bool *)bpf_map_lookup_elem(&forbidden_src_ips, &src_ip);
+        if (forbidden_src && *forbidden_src)
         {
             return XDP_DROP;
         }
         /* Get the forbidden destination IP from the map */
-        forbidden_dst = bpf_map_lookup_elem(&forbidden_dst_ips, &dst_ip);
-        if (forbidden_dst && forbidden_dst->present)
+        forbidden_dst = (_Bool *)bpf_map_lookup_elem(&forbidden_dst_ips, &dst_ip);
+        if (forbidden_dst && *forbidden_dst)
         {
             return XDP_DROP;
         }
@@ -105,8 +97,8 @@ int xdp_firewall_prog(struct xdp_md *ctx)
         protocol = iph->protocol;
 
         /* Get the forbidden protocol from the map */
-        forbidden_proto = bpf_map_lookup_elem(&forbidden_protocols, &protocol);
-        if (forbidden_proto && forbidden_proto->present)
+        forbidden_proto = (_Bool *)bpf_map_lookup_elem(&forbidden_protocols, &protocol);
+        if (forbidden_proto && *forbidden_proto)
         {
             return XDP_DROP;
         }
@@ -137,8 +129,8 @@ int xdp_firewall_prog(struct xdp_md *ctx)
             }
 
             /* Get the forbidden destination port from the map */
-            forbidden_port = bpf_map_lookup_elem(&forbidden_dst_ports, &dst_port);
-            if (forbidden_port && forbidden_port->present)
+            forbidden_port = (_Bool *)bpf_map_lookup_elem(&forbidden_dst_ports, &dst_port);
+            if (forbidden_port && *forbidden_port)
                 return XDP_DROP;
         }
     }
