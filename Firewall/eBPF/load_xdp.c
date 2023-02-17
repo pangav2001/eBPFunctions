@@ -206,4 +206,4 @@ int main(int argc, char **argv)
     return 0;
 }
 
-// clang -I ../../libbpf/include -o load_xdp load_xdp.c -L ../../libbpf/src -lbpf
+// clang -I ../../libbpf/include -o load_xdp.out load_xdp.c -L ../../libbpf/src -lbpf
