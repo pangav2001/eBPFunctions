@@ -4,10 +4,13 @@ This repository is set up to keep track of my work progress for my BEng Computin
 
 ### TO-DOs
 
-- [ ] Complete the [xdp-tutorial](https://github.com/xdp-project/xdp-tutorial)
-  - [X] Basic setup lessons
-  - [ ] Packet processing lessons
-  - [ ] Advanced lessons
+~~- [ ] Complete the [xdp-tutorial](https://github.com/xdp-project/xdp-tutorial)~~
+~~  - [X] Basic setup lessons~~
+~~  - [ ] Packet processing lessons~~
+~~  - [ ] Advanced lessons~~
+This tutorial is based on a heavily deprecated version of [libbpf](https://github.com/libbpf/libbpf). However, some concepts might still be useful.
+- [ ] Update README to include info about the libbpf submodule
+- [ ] Create a universal makefile
 
 |   | **eBPF** | **DPDK** | **uBPF** | **Netmap** |
 |:-:|:--------:|:--------:|:--------:|:---------:|
