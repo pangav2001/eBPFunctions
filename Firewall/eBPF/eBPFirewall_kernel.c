@@ -6,9 +6,7 @@
 #include <linux/tcp.h>
 #include <linux/types.h>
 #include <arpa/inet.h>
-
-#define IP_TCP 6
-#define IP_UDP 17
+#include <linux/in.h>
 
 struct boolean
 {
@@ -69,12 +67,11 @@ int xdp_firewall_prog(struct xdp_md *ctx)
     struct boolean *forbidden_port;
     struct boolean *forbidden_proto;
 
-
     /* Get the IP header */
     iph = data + sizeof(*eth);
 
     /* Check if IP header is within bounds */
-    if (iph + 1 > data_end)
+    if (iph + 1 > (struct iphdr *)data_end)
     {
         return XDP_DROP;
     }
@@ -113,15 +110,15 @@ int xdp_firewall_prog(struct xdp_md *ctx)
         {
             return XDP_DROP;
         }
-        if (protocol == IP_TCP || protocol == IP_UDP)
+        if (protocol == IPPROTO_TCP || protocol == IPPROTO_UDP)
         {
             /* Get the TCP or UDP header */
-            if (protocol == IP_TCP)
+            if (protocol == IPPROTO_TCP)
             {
                 tcph = data + sizeof(*eth) + sizeof(*iph);
 
                 /* Check if TCP header is within bounds */
-                if (tcph + 1 > data_end)
+                if (tcph + 1 > (struct tcphdr *)data_end)
                     return XDP_DROP;
 
                 /* Get the destination port */
@@ -132,7 +129,7 @@ int xdp_firewall_prog(struct xdp_md *ctx)
                 udph = data + sizeof(*eth) + sizeof(*iph);
 
                 /* Check if UDP header is within bounds */
-                if (udph + 1 > data_end)
+                if (udph + 1 > (struct udphdr *)data_end)
                     return XDP_DROP;
 
                 /* Get the destination port */
