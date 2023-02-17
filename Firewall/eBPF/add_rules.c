@@ -81,7 +81,7 @@ int bpf_object_find_map_fd_by_name(const struct bpf_object *obj, const char *nam
     int map_fd = bpf_object__find_map_fd_by_name(obj, name);
     if (map_fd < 0)
     {
-        printf("There wqs an error getting the file descriptor for the map named %s associated with the given BPF object!\n", name);
+        printf("There was an error getting the file descriptor for the map named %s associated with the given BPF object!\n", name);
         bpf_object_print_name(obj);
         // should print error
     }
