@@ -5,19 +5,26 @@
 #include <bpf/libbpf.h>
 #include <net/if.h>
 #include <linux/if_link.h>
+#include <arpa/inet.h>
+#include <netinet/in.h>
 
 #define IFNAME "xdptut-080a"
 
-#define FORBIDDEN_DST_IP 16845578 // 10.11.1.1
-#define FORBIDDEN_SRC_IP 33622794 // 10.11.1.2
-#define IP_ICMP 1
-#define FORBIDDEN_PROTO IP_ICMP
+#define FORBIDDEN_DST_IP "10.11.1.1"
+#define FORBIDDEN_SRC_IP "10.11.1.2"
+#define FORBIDDEN_PROTO IPPROTO_ICMP
+#define FORBIDDEN_PORT IPPORT_ECHO
 #define PATH "./eBPFirewall_kernel.o"
 
 struct boolean
 {
     unsigned int present : 1;
 };
+
+__be32 get_ip_address_in_nbo(const char *ip) {
+  in_addr_t ip_addr = inet_addr(ip);
+  return (__be32) ip_addr;
+}
 
 struct bpf_object *bpf_object_open(char *path)
 {
@@ -153,9 +160,9 @@ void forbidden_src_ip(const struct bpf_object *obj, const void *src_ip, const bo
     rule_update(obj, "src_ips", src_ip, sizeof(__be32), &add);
 }
 
-void forbidden_dst_ports(const struct bpf_object *obj, const void *dst_port, const bool add)
+void forbidden_dst_port(const struct bpf_object *obj, const void *dst_port, const bool add)
 {
-    rule_update(obj, "protocols", dst_port, sizeof(__be16), &add);
+    rule_update(obj, "dst_ports", dst_port, sizeof(__be16), &add);
 }
 
 void forbidden_protocol(const struct bpf_object *obj, const void *proto, const bool add)
@@ -171,6 +178,7 @@ int main(int argc, char **argv)
     struct bpf_program *bprog;
 
     __be32 key_32;
+    // __be16 key_16;
     __u8 key_8;
 
     ifindex = if_nametoindex(IFNAME);
@@ -187,17 +195,21 @@ int main(int argc, char **argv)
 
     bpf_xdp_attach_SKB_simple(ifindex, bprog_fd);
 
-    key_32 = FORBIDDEN_DST_IP;
+    key_32 = get_ip_address_in_nbo(FORBIDDEN_DST_IP);
 
     forbidden_dst_ip(bobj, &key_32, false);
 
-    key_32 = FORBIDDEN_SRC_IP;
+    key_32 = get_ip_address_in_nbo(FORBIDDEN_SRC_IP);
 
     forbidden_src_ip(bobj, &key_32, false);
 
     key_8 = FORBIDDEN_PROTO;
 
     forbidden_protocol(bobj, &key_8, false);
+
+    // key_16 = FORBIDDEN_PORT;
+
+    // forbidden_dst_port(bobj, &key_16, false);
 
     // bpf_xdp_detach(ifindex, XDP_FLAGS_SKB_MODE, 0);
 
