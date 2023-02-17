@@ -185,4 +185,4 @@ int main(int argc, char **argv)
     return 0;
 }
 
-// clang -I ../../libbpf/include -o add_rules.out add_rules.c -L ../../libbpf/src -lbpf
+// clang -Wall -I ../../libbpf/include -o add_rules.out add_rules.c -L ../../libbpf/src -lbpf
