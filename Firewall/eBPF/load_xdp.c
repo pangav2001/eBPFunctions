@@ -6,24 +6,11 @@
 #include <net/if.h>
 #include <linux/if_link.h>
 #include <arpa/inet.h>
-#include <netinet/in.h>
-
-#define true 1
-#define false 0
+#include <dirent.h>
 
 #define IFNAME "xdptut-080a"
 
-#define FORBIDDEN_DST_IP "10.11.1.1"
-#define FORBIDDEN_SRC_IP "10.11.1.2"
-#define FORBIDDEN_PROTO IPPROTO_ICMP
-#define FORBIDDEN_PORT IPPORT_ECHO
-
 #define PATH "./eBPFirewall_kernel.o"
-
-__be32 get_ip_address_in_nbo(const char *ip) {
-  in_addr_t ip_addr = inet_addr(ip);
-  return (__be32) ip_addr;
-}
 
 struct bpf_object *bpf_object_open(char *path)
 {
@@ -87,15 +74,6 @@ int bpf_program_fd(const struct bpf_program *prog)
     return fd;
 }
 
-void bpf_program_print_fd(const struct bpf_program *prog)
-{
-    int fd = bpf_program_fd(prog);
-    if (fd)
-    {
-        printf("The BPF program file descriptor is %d.\n", fd);
-    }
-}
-
 void bpf_xdp_attach_SKB_simple(int ifindex, int prog_fd)
 {
     int attached = bpf_xdp_attach(ifindex, prog_fd, XDP_FLAGS_SKB_MODE, 0);
@@ -106,66 +84,26 @@ void bpf_xdp_attach_SKB_simple(int ifindex, int prog_fd)
     }
 }
 
-struct bpf_map *bpf_object_find_map_by_name(const struct bpf_object *obj, const char *name)
+void bpf_object_pin_maps(struct bpf_object *obj, const char *path)
 {
-    struct bpf_map *map = bpf_object__find_map_by_name(obj, name);
-    if (!map)
+    DIR *dir = opendir(path);
+    if (dir)
     {
-        printf("No map named %s could be found in the given BPF object!\n", name);
+        int unpinned = bpf_object__unpin_maps(obj, path);
+        if (unpinned)
+        {
+            printf("There was an error un-pinning (done before pinning) the maps for the given BPF object!\n");
+            bpf_object_print_name(obj);
+            // should print error
+        }
+    }
+    int pinned = bpf_object__pin_maps(obj, path);
+    if (pinned)
+    {
+        printf("There was an error pinning the maps for the given BPF object!\n");
         bpf_object_print_name(obj);
         // should print error
     }
-    return map;
-}
-
-int bpf_object_find_map_fd_by_name(const struct bpf_object *obj, const char *name)
-{
-    int map_fd = bpf_object__find_map_fd_by_name(obj, name);
-    if (map_fd < 0)
-    {
-        printf("There wqs an error getting the file descriptor for the map named %s associated with the given BPF object!\n", name);
-        bpf_object_print_name(obj);
-        // should print error
-    }
-    return map_fd;
-}
-
-void bpf_map_update_elem_simple(const struct bpf_object *obj, const char *map_name, const void *key, size_t key_sz, const void *value, size_t value_sz)
-{
-    struct bpf_map *map = bpf_object_find_map_by_name(obj, map_name);
-    int updated = bpf_map__update_elem(map, key, key_sz, value, value_sz, BPF_ANY);
-    if (updated)
-    {
-        printf("There was an error updating element with given key in map named %s!\n", map_name);
-        // should print error
-    }
-}
-
-void rule_update(const struct bpf_object *obj, const char *rule, const void *key, size_t key_size, const void *add)
-{
-    // probably (surely) not very (at all) safe for production
-    char map_name[20] = "forbidden_";
-    bpf_map_update_elem_simple(obj, strcat(map_name, rule), key, key_size, add, sizeof(_Bool));
-}
-
-void forbidden_dst_ip(const struct bpf_object *obj, const void *dst_ip, const _Bool add)
-{
-    rule_update(obj, "dst_ips", dst_ip, sizeof(__be32), &add);
-}
-
-void forbidden_src_ip(const struct bpf_object *obj, const void *src_ip, const _Bool add)
-{
-    rule_update(obj, "src_ips", src_ip, sizeof(__be32), &add);
-}
-
-void forbidden_dst_port(const struct bpf_object *obj, const void *dst_port, const _Bool add)
-{
-    rule_update(obj, "dst_ports", dst_port, sizeof(__be16), &add);
-}
-
-void forbidden_protocol(const struct bpf_object *obj, const void *proto, const _Bool add)
-{
-    rule_update(obj, "protocols", proto, sizeof(__u8), &add);
 }
 
 int main(int argc, char **argv)
@@ -175,13 +113,7 @@ int main(int argc, char **argv)
     struct bpf_object *bobj;
     struct bpf_program *bprog;
 
-    __be32 key_32;
-    // __be16 key_16;
-    __u8 key_8;
-
     ifindex = if_nametoindex(IFNAME);
-
-    printf("The interface index of %s is:  %d\n", IFNAME, ifindex);
 
     bobj = bpf_object_open(PATH);
 
@@ -193,23 +125,7 @@ int main(int argc, char **argv)
 
     bpf_xdp_attach_SKB_simple(ifindex, bprog_fd);
 
-    key_32 = get_ip_address_in_nbo(FORBIDDEN_DST_IP);
-
-    forbidden_dst_ip(bobj, &key_32, false);
-
-    key_32 = get_ip_address_in_nbo(FORBIDDEN_SRC_IP);
-
-    forbidden_src_ip(bobj, &key_32, false);
-
-    key_8 = FORBIDDEN_PROTO;
-
-    forbidden_protocol(bobj, &key_8, false);
-
-    // key_16 = FORBIDDEN_PORT;
-
-    // forbidden_dst_port(bobj, &key_16, false);
-
-    // bpf_xdp_detach(ifindex, XDP_FLAGS_SKB_MODE, 0);
+    bpf_object_pin_maps(bobj, "/sys/fs/bpf/xdp_firewall_prog/");
 
     bpf_object__close(bobj);
 
