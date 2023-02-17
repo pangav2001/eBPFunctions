@@ -151,5 +151,4 @@ int xdp_firewall_prog(struct xdp_md *ctx)
 }
 char _license[] SEC("license") = "GPL";
 
-// katran
 // clang -O2 -g -Wall -target bpf -c eBPFirewall_kernel.c -o eBPFirewall_kernel.o
