@@ -162,10 +162,6 @@ int main(int argc, char **argv)
 
     forbidden_dst_ip(bobj, &key_32, false);
 
-    key_32 = get_ip_address_in_nbo(FORBIDDEN_DST_IP);
-
-    forbidden_dst_ip(bobj, &key_32, false);
-
     key_32 = get_ip_address_in_nbo(FORBIDDEN_SRC_IP);
 
     forbidden_src_ip(bobj, &key_32, false);
