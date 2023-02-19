@@ -7,6 +7,7 @@
 #include <linux/types.h>
 #include <arpa/inet.h>
 #include <linux/in.h>
+#include <bpf/bpf_endian.h>
 
 // https://docs.kernel.org/bpf/map_array.html
 // https://docs.kernel.org/bpf/maps.html
@@ -68,7 +69,7 @@ int xdp_firewall_prog(struct xdp_md *ctx)
         return XDP_DROP;
     }
     /* Don't inspect packet if it's not an IPv4 packet */
-    if (eth->h_proto == htons(ETH_P_IP))
+    if (eth->h_proto == bpf_htons(ETH_P_IP))
     {
         /* Get the source and destination IPs */
         src_ip = iph->saddr;
