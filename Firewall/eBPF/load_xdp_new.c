@@ -128,7 +128,7 @@ int main(int argc, char **argv)
 
     bpf_object_pin_maps(bobj, "/sys/fs/bpf/xdp_firewall/");
 
-    bpf_xdp_detach(ifindex, XDP_FLAGS_SKB_MODE, 0);
+    // bpf_xdp_detach(ifindex, XDP_FLAGS_SKB_MODE, 0);
 
     bpf_object__close(bobj);
 

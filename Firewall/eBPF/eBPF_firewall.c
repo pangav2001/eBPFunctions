@@ -66,7 +66,9 @@ struct
 
 static __u32 check_ipv4_rule(void *map, __u32 *key, struct IPv4Rule *val,
                 struct IPv4Lookup *data) {
-                    if ((data->ipv4_pkt->src_ip | val->src_ip_wildcard_mask) == (val->src_ip | val->src_ip_wildcard_mask) 
+                    val = bpf_map_lookup_elem(map, key);
+                    if (val
+                    && (data->ipv4_pkt->src_ip | val->src_ip_wildcard_mask) == (val->src_ip | val->src_ip_wildcard_mask) 
                     && (data->ipv4_pkt->dst_ip | val->dst_ip_wildcard_mask) == (val->dst_ip | val->dst_ip_wildcard_mask)
                     && (val->protocol == 255 || data->ipv4_pkt->protocol == val->protocol)
                     && (data->ipv4_pkt->src_port >= val->min_src_port && data->ipv4_pkt->src_port <= val->max_src_port)
@@ -133,17 +135,17 @@ int xdp_firewall(struct xdp_md *ctx)
         struct IPv4Lookup ipv4_lookup = {
             .ipv4_pkt = &ipv4_pkt
         };
-        // struct IPv4Rule *ipv4_rule = NULL;
-        // __u32 key;
-        // for (__u32 i = 0; i < 100; i++)
-        // {
-        //     key = i;
-        //     if(check_ipv4_rule(&ipv4_rules, &key, ipv4_rule, &ipv4_lookup))
-        //         return ipv4_lookup.allow ? XDP_PASS : XDP_DROP;
-        // }
+        struct IPv4Rule *ipv4_rule = NULL;
+        __u32 key;
+        for (__u32 i = 0; i < 100; i++)
+        {
+            key = i;
+            if(check_ipv4_rule(&ipv4_rules, &key, ipv4_rule, &ipv4_lookup))
+                return ipv4_lookup.allow ? XDP_PASS : XDP_DROP;
+        }
 
-        bpf_for_each_map_elem(&ipv4_rules, check_ipv4_rule, &ipv4_lookup, 0);
-        return ipv4_lookup.allow ? XDP_PASS : XDP_DROP;
+        // bpf_for_each_map_elem(&ipv4_rules, &check_ipv4_rule, &ipv4_lookup, 0);
+        // return ipv4_lookup.allow ? XDP_PASS : XDP_DROP;
 
     }
     else if (eth->h_proto == bpf_htons(ETH_P_IPV6)) {
