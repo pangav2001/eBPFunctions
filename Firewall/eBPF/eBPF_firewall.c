@@ -32,7 +32,7 @@ struct IPv4Packet {
 
 struct IPv4Lookup {
     struct IPv4Packet *ipv4_pkt;
-    __u32 *index;
+    _Bool allow;
 };
 
 struct IPv6Rule {
@@ -64,32 +64,40 @@ struct
     __uint(max_entries, 100);
 } ipv6_rules SEC(".maps");
 
-static __u32 check_rule(void *map, __u32 *key, struct IPv4Rule *val,
+static __u32 check_ipv4_rule(void *map, __u32 *key, struct IPv4Rule *val,
                 struct IPv4Lookup *data) {
-                    if ((data->ipv4_pkt->src_ip | val->src_ip_wildcard_mask) == val->src_ip 
-                    && (data->ipv4_pkt->dst_ip | val->dst_ip_wildcard_mask) == val->dst_ip && data->ipv4_pkt->protocol == val->protocol
+                    if ((data->ipv4_pkt->src_ip | val->src_ip_wildcard_mask) == (val->src_ip | val->src_ip_wildcard_mask) 
+                    && (data->ipv4_pkt->dst_ip | val->dst_ip_wildcard_mask) == (val->dst_ip | val->dst_ip_wildcard_mask)
+                    && (val->protocol == 255 || data->ipv4_pkt->protocol == val->protocol)
                     && (data->ipv4_pkt->src_port >= val->min_src_port && data->ipv4_pkt->src_port <= val->max_src_port)
                     && (data->ipv4_pkt->dst_port >= val->min_dst_port && data->ipv4_pkt->dst_port <= val->max_dst_port)) {
-                        data->index = key;
+                        data->allow = val->allow;
                         return 1;
                     }
                     return 0;
                 }
 SEC("xdp")
-int xdp_firewall_prog(struct xdp_md *ctx)
+int xdp_firewall(struct xdp_md *ctx)
 {
     void *data = (void *)(long)ctx->data;
-    // void *data_end = (void *)(long)ctx->data_end;
+    void *data_end = (void *)(long)ctx->data_end;
     struct ethhdr *eth = data;
-
+    if ((void *)(eth + 1) > data_end)
+    {
+        return XDP_ABORTED;
+    }
     /* Don't inspect packet if it's not an IPv4 packet */
     if (eth->h_proto == bpf_htons(ETH_P_IP))
     {
         struct IPv4Packet ipv4_pkt = {
-            .src_port = -1,
-            .dst_port = -1
+            .src_port = 0,
+            .dst_port = 0
         };
-        struct iphdr *iph = data + sizeof(eth);
+        struct iphdr *iph = data + sizeof(struct ethhdr);
+        if ((void *)(iph + 1) > data_end)
+        {
+            return XDP_ABORTED;
+        }
         /* Get the source and destination IPs */
         ipv4_pkt.src_ip = iph->saddr;
         ipv4_pkt.dst_ip = iph->daddr;
@@ -101,15 +109,22 @@ int xdp_firewall_prog(struct xdp_md *ctx)
             /* Get the TCP or UDP header */
             if (ipv4_pkt.protocol == IPPROTO_TCP)
             {
-                struct tcphdr *tcph = (void *) iph + sizeof(*iph);
+                struct tcphdr *tcph = (void *) iph + sizeof(struct iphdr);
+                if ((void *)(tcph + 1) > data_end)
+                {
+                    return XDP_ABORTED;
+                }
                 /* Get the source and destination ports */
                 ipv4_pkt.src_port = tcph->source;
                 ipv4_pkt.dst_port = tcph->dest;
             }
             else
             {
-                struct udphdr *udph = (void *) iph + sizeof(*iph);
-
+                struct udphdr *udph = (void *) iph + sizeof(struct iphdr);
+                if ((void *)(udph + 1) > data_end)
+                {
+                    return XDP_ABORTED;
+                }
                 /* Get the source and destination ports */
                 ipv4_pkt.src_port = udph->source;
                 ipv4_pkt.dst_port = udph->dest;
@@ -118,22 +133,17 @@ int xdp_firewall_prog(struct xdp_md *ctx)
         struct IPv4Lookup ipv4_lookup = {
             .ipv4_pkt = &ipv4_pkt
         };
-        long ret = bpf_for_each_map_elem(&ipv4_rules, &check_rule, &ipv4_lookup, 0);
-        if (ret < 0)
-        {
-            //Oh oh...
-        }
-        struct IPv4Rule *ipv4_rule;
-        if (ipv4_lookup.index)
-        {
-            ipv4_rule = (struct IPv4Rule *)bpf_map_lookup_elem(&ipv4_rules, ipv4_lookup.index);
-            if (ipv4_rule->allow) {
-                return XDP_PASS;
-            }
-            else {
-                return XDP_DROP;
-            }
-        }
+        // struct IPv4Rule *ipv4_rule = NULL;
+        // __u32 key;
+        // for (__u32 i = 0; i < 100; i++)
+        // {
+        //     key = i;
+        //     if(check_ipv4_rule(&ipv4_rules, &key, ipv4_rule, &ipv4_lookup))
+        //         return ipv4_lookup.allow ? XDP_PASS : XDP_DROP;
+        // }
+
+        bpf_for_each_map_elem(&ipv4_rules, check_ipv4_rule, &ipv4_lookup, 0);
+        return ipv4_lookup.allow ? XDP_PASS : XDP_DROP;
 
     }
     else if (eth->h_proto == bpf_htons(ETH_P_IPV6)) {
