@@ -86,7 +86,7 @@ int xdp_firewall(struct xdp_md *ctx)
     {
         return XDP_ABORTED;
     }
-    /* Don't inspect packet if it's not an IPv4 packet */
+    /* Don't inspect packet if it's not an IPv4 packet or IPv6 packet */
     if (eth->h_proto == bpf_htons(ETH_P_IP))
     {
         struct IPv4Packet ipv4_pkt = {
