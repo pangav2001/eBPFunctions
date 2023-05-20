@@ -135,7 +135,7 @@ int xdp_firewall(struct xdp_md *ctx)
         struct IPv4Lookup ipv4_lookup = {
             .ipv4_pkt = &ipv4_pkt
         };
-        struct IPv4Rule *ipv4_rule = NULL;
+        struct IPv4Rule *ipv4_rule = (void *)0;
         __u32 key;
         for (__u32 i = 0; i < 100; i++)
         {
