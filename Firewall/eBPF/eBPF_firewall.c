@@ -101,8 +101,8 @@ int xdp_firewall(struct xdp_md *ctx)
             return XDP_ABORTED;
         }
         /* Get the source and destination IPs */
-        ipv4_pkt.src_ip = iph->saddr;
-        ipv4_pkt.dst_ip = iph->daddr;
+        ipv4_pkt.src_ip = bpf_ntohl(iph->saddr);
+        ipv4_pkt.dst_ip = bpf_ntohl(iph->daddr);
         /* Get the protocol */
         ipv4_pkt.protocol = iph->protocol;
 
@@ -117,8 +117,8 @@ int xdp_firewall(struct xdp_md *ctx)
                     return XDP_ABORTED;
                 }
                 /* Get the source and destination ports */
-                ipv4_pkt.src_port = tcph->source;
-                ipv4_pkt.dst_port = tcph->dest;
+                ipv4_pkt.src_port = bpf_ntohs(tcph->source);
+                ipv4_pkt.dst_port = bpf_ntohs(tcph->dest);
             }
             else
             {
@@ -128,8 +128,8 @@ int xdp_firewall(struct xdp_md *ctx)
                     return XDP_ABORTED;
                 }
                 /* Get the source and destination ports */
-                ipv4_pkt.src_port = udph->source;
-                ipv4_pkt.dst_port = udph->dest;
+                ipv4_pkt.src_port = bpf_ntohs(udph->source);
+                ipv4_pkt.dst_port = bpf_ntohs(udph->dest);
             }
         }
         struct IPv4Lookup ipv4_lookup = {
@@ -158,3 +158,18 @@ int xdp_firewall(struct xdp_md *ctx)
 char _license[] SEC("license") = "GPL";
 
 // clang -O2 -g -Wall -target bpf -c eBPF_firewall.c -o eBPF_firewall.o
+// struct IPv4Rule ipv4_rulee;
+// if (val){
+//     ipv4_rulee.src_ip = data->ipv4_pkt->src_ip;
+//     ipv4_rulee.src_ip_wildcard_mask = data->ipv4_pkt->src_ip | val->src_ip_wildcard_mask;
+//     ipv4_rulee.dst_ip = data->ipv4_pkt->dst_ip;
+//     ipv4_rulee.dst_ip_wildcard_mask = data->ipv4_pkt->dst_ip | val->dst_ip_wildcard_mask;
+//     ipv4_rulee.max_src_port = val->min_src_port;
+//     ipv4_rulee.max_dst_port = val->min_dst_port;
+//     ipv4_rulee.protocol = data->ipv4_pkt->protocol;
+//     ipv4_rulee.min_src_port = data->ipv4_pkt->src_port;
+//     ipv4_rulee.min_dst_port = data->ipv4_pkt->dst_port;
+//     ipv4_rulee.allow = val->allow;
+//     __u32 keyy = 3;
+//     bpf_map_update_elem(&ipv4_rules, &keyy, &ipv4_rulee, BPF_ANY);
+// }
