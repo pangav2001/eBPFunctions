@@ -20,7 +20,18 @@ struct IPv4Rule {
     __u8 protocol;
     _Bool allow;
 };
-
+struct IPv6Rule {
+    struct in6_addr src_ip;
+    struct in6_addr src_ip_wildcard_mask;
+    struct in6_addr dst_ip;
+    struct in6_addr dst_ip_wildcard_mask;
+    __be16 min_src_port;
+    __be16 max_src_port;
+    __be16 min_dst_port;
+    __be16 max_dst_port;
+    __u8 protocol;
+    _Bool allow;
+};
 #define true 1
 #define false 0
 
@@ -131,6 +142,41 @@ void reuse_pinned_maps(const struct bpf_object *obj, const char *pin_path) {
         }
     }
 }
+__u32 get_wildcard_mask(__u8 prefix_len)
+{
+    return prefix_len ? ~(~0 << (32 - prefix_len)) : ~0;
+}
+void create_ipv4_rule(struct IPv4Rule *ipv4_rule, char src_ip[], __u8 src_prefix_len, char dst_ip[], __u8 dst_prefix_len, 
+    __u16 min_src_port, __u16 max_src_port, __u16 min_dst_port, __u16 max_dst_port, __u8 protocol, bool allow) {
+        ipv4_rule->src_ip = ntohl(get_ip_address_in_nbo(src_ip));
+        ipv4_rule->src_ip_wildcard_mask = get_wildcard_mask(src_prefix_len);
+        ipv4_rule->dst_ip = ntohl(get_ip_address_in_nbo(dst_ip));
+        ipv4_rule->dst_ip_wildcard_mask = get_wildcard_mask(dst_prefix_len);
+        ipv4_rule->min_src_port = min_src_port;
+        ipv4_rule->max_src_port = max_src_port;
+        ipv4_rule->min_dst_port = min_dst_port;
+        ipv4_rule->max_dst_port = max_dst_port;
+        ipv4_rule->protocol = protocol;
+        ipv4_rule->allow = allow;
+}
+
+void print_ipv4_rule(struct IPv4Rule *ipv4_rule) {
+    printf("Src IP: %u, Dst IP: %u, Src Wildcard Mask: %u, Dst Wildcard Mask: %u\n", ipv4_rule->src_ip, ipv4_rule->dst_ip, ipv4_rule->src_ip_wildcard_mask, ipv4_rule->dst_ip_wildcard_mask);
+}
+
+void create_ipv6_rule(struct IPv6Rule *ipv6_rule, char src_ip[], __u8 src_prefix_len, char dst_ip[], __u8 dst_prefix_len, 
+    __u16 min_src_port, __u16 max_src_port, __u16 min_dst_port, __u16 max_dst_port, __u8 protocol, bool allow) {
+        inet_pton(AF_INET6, src_ip, &ipv6_rule->src_ip);
+        ipv6_rule->src_ip_wildcard_mask = in6addr_any;
+        inet_pton(AF_INET6, dst_ip, &ipv6_rule->dst_ip);
+        ipv6_rule->dst_ip_wildcard_mask = in6addr_any;
+        ipv6_rule->min_src_port = min_src_port;
+        ipv6_rule->max_src_port = max_src_port;
+        ipv6_rule->min_dst_port = min_dst_port;
+        ipv6_rule->max_dst_port = max_dst_port;
+        ipv6_rule->protocol = protocol;
+        ipv6_rule->allow = allow;
+}
 
 int main(int argc, char **argv)
 {
@@ -141,35 +187,18 @@ int main(int argc, char **argv)
     reuse_pinned_maps(bobj, "/sys/fs/bpf/xdp_firewall/");
 
     bpf_object_load(bobj);
-    struct IPv4Rule ipv4_rule = {
-        .src_ip = get_ip_address_in_nbo("0.0.0.0"),
-        .src_ip_wildcard_mask = get_ip_address_in_nbo("255.255.255.255"),
-        .dst_ip = get_ip_address_in_nbo("0.0.0.0"),
-        .dst_ip_wildcard_mask = get_ip_address_in_nbo("255.255.255.255"),
-        .min_src_port = 0,
-        .max_src_port = 65535,
-        .min_dst_port = 0,
-        .max_dst_port = 65535,
-        .protocol = 255,
-        .allow = false
-    };
-    struct IPv4Rule ipv4_rulee = {
-        .src_ip = get_ip_address_in_nbo("0.0.0.0"),
-        .src_ip_wildcard_mask = get_ip_address_in_nbo("255.255.255.255"),
-        .dst_ip = get_ip_address_in_nbo("0.0.0.0"),
-        .dst_ip_wildcard_mask = get_ip_address_in_nbo("255.255.255.255"),
-        .min_src_port = 0,
-        .max_src_port = 65535,
-        .min_dst_port = 0,
-        .max_dst_port = 65535,
-        .protocol = IPPROTO_ICMP,
-        .allow = true
-    };
+    struct IPv4Rule ipv4_rule;
     const char map_name[] = "ipv4_rules";
-    __u32 key = 1;
+    __u32 key = 0;
+    create_ipv4_rule(&ipv4_rule, "0.0.0.0", 0, "192.168.133.128", 32, 0, 65535, 0, 65535, IPPROTO_ICMP, true);
+    print_ipv4_rule(&ipv4_rule);
     bpf_map_update_elem_simple(bobj, map_name, &key, sizeof(key), &ipv4_rule, sizeof(ipv4_rule));
-    key = 0;
-    bpf_map_update_elem_simple(bobj, map_name, &key, sizeof(key), &ipv4_rulee, sizeof(ipv4_rulee));
+    key = 1;
+    create_ipv4_rule(&ipv4_rule, "0.0.0.0", 0, "0.0.0.0", 0, 0, 65535, 0, 65535, 255, false);
+    print_ipv4_rule(&ipv4_rule);
+    bpf_map_update_elem_simple(bobj, map_name, &key, sizeof(key), &ipv4_rule, sizeof(ipv4_rule));
+    // key = 2;
+    // bpf_map_update_elem_simple(bobj, map_name, &key, sizeof(key), &ipv4_ruleee, sizeof(ipv4_ruleee));
     bpf_object__close(bobj);
     
     return 0;

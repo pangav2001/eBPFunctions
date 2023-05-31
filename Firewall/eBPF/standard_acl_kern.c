@@ -42,6 +42,11 @@ int xdp_standard_acl(struct xdp_md *ctx)
     void *data_end = (void *)(long)ctx->data_end;
     struct ethhdr *eth = data;
 
+    /* Check if eth header is within bounds */
+    if ((void *) (eth + 1) > data_end)
+    {
+        return XDP_DROP;
+    }
     /* Don't inspect packet if it's not an IPv4 or IPv6 packet */
     if (eth->h_proto == bpf_htons(ETH_P_IP) || eth->h_proto == bpf_htons(ETH_P_IPV6))
     {
@@ -54,7 +59,7 @@ int xdp_standard_acl(struct xdp_md *ctx)
             iph = data + sizeof(struct ethhdr);
 
             /* Check if IP header is within bounds */
-            if ((void *) iph + 1 > data_end)
+            if ((void *) (iph + 1) > data_end)
             {
                 return XDP_DROP;
             }
@@ -76,7 +81,7 @@ int xdp_standard_acl(struct xdp_md *ctx)
             ipv6h = data + sizeof(struct ethhdr);
 
             /* Check if IP header is within bounds */
-            if ((void *) ipv6h + 1 > data_end)
+            if ((void *) (ipv6h + 1) > data_end)
             {
                 return XDP_DROP;
             }
