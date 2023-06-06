@@ -7,12 +7,12 @@
 #include <linux/ipv6.h>
 #include <bpf/bpf_endian.h>
 
-// 00:0c:29:5c:63:9c
-unsigned char my_mac[] = {0x00, 0x0c, 0x29, 0x5c, 0x63, 0x9c};
-// 00:0C:29:4A:35:32
-unsigned char source_mac[] = {0x00, 0x0c, 0x29, 0x4a, 0x35, 0x32};
-// 00:0C:29:AB:A1:52
-unsigned char target_mac[] = {0x00, 0x0c, 0x29, 0xab, 0xa1, 0x52};
+// 90:e2:ba:f7:32:69
+unsigned char my_mac[] = {0x90, 0xe2, 0xba, 0xf7, 0x32, 0x69};
+// 90:E2:BA:F7:30:1D
+unsigned char source_mac[] = {0x90, 0xe2, 0xba, 0xf7, 0x30, 0x1d};
+// 90:E2:BA:F7:31:CD
+unsigned char target_mac[] = {0x90, 0xe2, 0xba, 0xf7, 0x31, 0xcd};
 
 static __always_inline int _strcmp (const unsigned char *buf1, const unsigned char *buf2, unsigned long size) {
     unsigned char c1, c2;
@@ -49,7 +49,7 @@ int xdp_red(struct xdp_md *ctx)
             __builtin_memcpy(eth->h_source, my_mac, ETH_ALEN);
             __builtin_memcpy(eth->h_dest, target_mac, ETH_ALEN);
             /* Send packet to new destination */
-            return XDP_PASS;
+            return XDP_TX;
         }
         // /* Swap MAC addresses as appropriate */
         // __builtin_memcpy(eth->h_source, my_mac, ETH_ALEN);
@@ -64,3 +64,4 @@ int xdp_red(struct xdp_md *ctx)
 char _license[] SEC("license") = "GPL";
 
 // clang -O2 -g -Wall -target bpf -c redirect.c -o redirect.o
+// sudo ip link set dev <ifname> [xdpgeneric | xdpdrv | xdpoffload] obj redirect.o sec xdp

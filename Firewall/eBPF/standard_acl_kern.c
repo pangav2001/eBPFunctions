@@ -7,6 +7,25 @@
 #include <linux/ipv6.h>
 #include <bpf/bpf_endian.h>
 
+// 90:e2:ba:f7:32:69
+unsigned char my_mac[] = {0x90, 0xe2, 0xba, 0xf7, 0x32, 0x69};
+// 90:E2:BA:F7:30:1D
+unsigned char source_mac[] = {0x90, 0xe2, 0xba, 0xf7, 0x30, 0x1d};
+// 90:E2:BA:F7:31:CD
+unsigned char target_mac[] = {0x90, 0xe2, 0xba, 0xf7, 0x31, 0xcd};
+
+static __always_inline int _strcmp (const unsigned char *buf1, const unsigned char *buf2, unsigned long size) {
+    unsigned char c1, c2;
+    for (unsigned long i = 0; i < size; i++)
+    {
+        c1 = *buf1++;
+        c2 = *buf2++;
+        if (c1 != c2) return c1 < c2 ? -1 : 1;
+        if (!c1) break;
+    }
+    return 0;
+} 
+
 struct ipv4_lpm_key {
         __u32 prefixlen;
         __u32 data;
@@ -96,8 +115,22 @@ int xdp_standard_acl(struct xdp_md *ctx)
             permitted_src = (_Bool *)bpf_map_lookup_elem(&ipv6_rules_trie, &key);
         }
 
-        /* Implicit "DENY ANY" at end of list*/
-        return (permitted_src && *permitted_src) ? XDP_PASS : XDP_DROP;
+        if (permitted_src && *permitted_src) {
+            /* Check that source MAC is that of MoonGen sender
+           and destination MAC is that of the NIC running the XDP prog*/
+            if (!(_strcmp(eth->h_source, source_mac, ETH_ALEN) 
+                || _strcmp(eth->h_dest, my_mac, ETH_ALEN))) {
+                /* Swap MAC addresses as appropriate */
+                __builtin_memcpy(eth->h_source, my_mac, ETH_ALEN);
+                __builtin_memcpy(eth->h_dest, target_mac, ETH_ALEN);
+                /* Send packet to new destination */
+                return XDP_TX;
+            }
+        }
+        else {
+            /* Implicit "DENY ANY" at end of list*/
+            return XDP_DROP;
+        }
     }
 
     /* Allow the packet if not IPv4/IPv6 packet */

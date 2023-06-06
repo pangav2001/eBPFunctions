@@ -185,7 +185,7 @@ int main(int argc, char **argv)
     struct ipv4_lpm_key ipv4_key;
     struct ipv6_lpm_key ipv6_key;
     _Bool value;
-    ipv4_key = gen_ipv4_key(24, get_ip_address_in_nbo("10.0.42.1"));
+    ipv4_key = gen_ipv4_key(24, get_ip_address_in_nbo("10.1.0.1"));
     value = true;
     bpf_map_update_elem_simple(bobj, "ipv4_rules_trie", &ipv4_key, sizeof(ipv4_key), &value, sizeof(value));
     bpf_object__close(bobj);
@@ -193,4 +193,4 @@ int main(int argc, char **argv)
     return 0;
 }
 
-// clang -Wall -I ../../libbpf/include -o add_standard_acl_rules.out add_standard_acl_rules.c -L ../../libbpf/src -lbpf
+// clang -Wall -I ../../libbpf/include -o add_standard_acl_rules.out add_standard_acl_rules.c -L ../../libbpf/src -lbpf -lelf
