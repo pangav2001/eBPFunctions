@@ -145,10 +145,12 @@ int main(int argc, char **argv)
 
     bprog_fd = bpf_program_fd(bprog);
 
+    // bpf_xdp_attach_SKB_simple(ifindex, bprog_fd);
     bpf_xdp_attach_DRV_simple(ifindex, bprog_fd);
 
     bpf_object_pin_maps(bobj, "/sys/fs/bpf/xdp_standard_acl/");
 
+    // bpf_xdp_detach(ifindex, XDP_FLAGS_SKB_MODE, 0);
     bpf_xdp_detach(ifindex, XDP_FLAGS_DRV_MODE, 0);
 
     bpf_object__close(bobj);
@@ -157,3 +159,4 @@ int main(int argc, char **argv)
 }
 
 // clang -Wall -I ../../libbpf/include -o load_standard_acl.out load_standard_acl.c -L ../../libbpf/src -lbpf -lelf
+// clang -Wall -o load_standard_acl.out load_standard_acl.c -lbpf -lelf

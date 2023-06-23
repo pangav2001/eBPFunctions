@@ -9,7 +9,7 @@
 #include <dirent.h>
 
 // #define IFNAME "xdptut-09b3"
-#define IFNAME "eth2"
+#define IFNAME "enp1s0f1"
 
 #define PATH "./eBPF_firewall.o"
 
@@ -85,6 +85,16 @@ void bpf_xdp_attach_SKB_simple(int ifindex, int prog_fd)
     }
 }
 
+void bpf_xdp_attach_DRV_simple(int ifindex, int prog_fd)
+{
+    int attached = bpf_xdp_attach(ifindex, prog_fd, XDP_FLAGS_DRV_MODE, 0);
+    if (attached)
+    {
+        printf("There was an error attaching the BPF program with file descriptor %d to interface %d!\n", prog_fd, ifindex);
+        // should print error
+    }
+}
+
 void bpf_object_pin_maps(struct bpf_object *obj, const char *path)
 {
     DIR *dir = opendir(path);
@@ -124,15 +134,16 @@ int main(int argc, char **argv)
 
     bprog_fd = bpf_program_fd(bprog);
 
-    bpf_xdp_attach_SKB_simple(ifindex, bprog_fd);
+    // bpf_xdp_attach_SKB_simple(ifindex, bprog_fd);
+    bpf_xdp_attach_DRV_simple(ifindex, bprog_fd);
 
     bpf_object_pin_maps(bobj, "/sys/fs/bpf/xdp_firewall/");
 
-    bpf_xdp_detach(ifindex, XDP_FLAGS_SKB_MODE, 0);
+    // bpf_xdp_detach(ifindex, XDP_FLAGS_SKB_MODE, 0);
 
     bpf_object__close(bobj);
 
     return 0;
 }
 
-// clang -Wall -I ../../libbpf/include -o load_xdp_new.out load_xdp_new.c -L ../../libbpf/src -lbpf
+// clang -Wall -I ../../libbpf/include -o load_xdp_new.out load_xdp_new.c -L ../../libbpf/src -lbpf -lelf

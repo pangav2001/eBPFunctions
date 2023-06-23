@@ -65,3 +65,8 @@ char _license[] SEC("license") = "GPL";
 
 // clang -O2 -g -Wall -target bpf -c redirect.c -o redirect.o
 // sudo ip link set dev <ifname> [xdpgeneric | xdpdrv | xdpoffload] obj redirect.o sec xdp
+// sudo ip link set dev enp1s0f1 xdpgeneric obj redirect.o sec xdp
+// sudo ip link set dev enp1s0f1 xdpdrv obj redirect.o sec xdp
+// sudo ip link set dev <ifname> [xdpgeneric | xdpdrv | xdpoffload] off
+// sudo ip link set dev enp1s0f1 xdpgeneric off
+// sudo ip link set dev enp1s0f1 xdpdrv off

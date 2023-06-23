@@ -42,7 +42,7 @@ struct
     __type(key, struct ipv4_lpm_key);
     __type(value, _Bool);
     __uint(map_flags, BPF_F_NO_PREALLOC);
-    __uint(max_entries, 255);
+    __uint(max_entries, 10001);
 } ipv4_rules_trie SEC(".maps");
 
 struct

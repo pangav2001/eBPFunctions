@@ -67,7 +67,7 @@ struct
     __uint(type, BPF_MAP_TYPE_ARRAY);
     __type(key, __u32);
     __type(value, struct IPv4Rule);
-    __uint(max_entries, 100);
+    __uint(max_entries, 500);
 } ipv4_rules SEC(".maps");
 
 struct
@@ -118,6 +118,25 @@ static __u32 check_ipv6_rule(void *map, __u32 *key, struct IPv6Rule *val,
                     }
                     return 0;
                 }
+
+// 90:e2:ba:f7:32:69
+unsigned char my_mac[] = {0x90, 0xe2, 0xba, 0xf7, 0x32, 0x69};
+// 90:E2:BA:F7:30:1D
+unsigned char source_mac[] = {0x90, 0xe2, 0xba, 0xf7, 0x30, 0x1d};
+// 90:E2:BA:F7:31:CD
+unsigned char target_mac[] = {0x90, 0xe2, 0xba, 0xf7, 0x31, 0xcd};
+
+static __always_inline int _strcmp (const unsigned char *buf1, const unsigned char *buf2, unsigned long size) {
+    unsigned char c1, c2;
+    for (unsigned long i = 0; i < size; i++)
+    {
+        c1 = *buf1++;
+        c2 = *buf2++;
+        if (c1 != c2) return c1 < c2 ? -1 : 1;
+        if (!c1) break;
+    }
+    return 0;
+} 
 SEC("xdp")
 int xdp_firewall(struct xdp_md *ctx)
 {
@@ -126,8 +145,9 @@ int xdp_firewall(struct xdp_md *ctx)
     struct ethhdr *eth = data;
     if ((void *)(eth + 1) > data_end)
     {
-        return XDP_ABORTED;
+        return XDP_DROP;
     }
+    _Bool permitted = 0;
     /* Don't inspect packet if it's not an IPv4 packet or IPv6 packet */
     if (eth->h_proto == bpf_htons(ETH_P_IP))
     {
@@ -138,7 +158,7 @@ int xdp_firewall(struct xdp_md *ctx)
         struct iphdr *iph = data + sizeof(struct ethhdr);
         if ((void *)(iph + 1) > data_end)
         {
-            return XDP_ABORTED;
+            return XDP_DROP;
         }
         /* Get the source and destination IPs */
         ipv4_pkt.src_ip = bpf_ntohl(iph->saddr);
@@ -154,7 +174,7 @@ int xdp_firewall(struct xdp_md *ctx)
                 struct tcphdr *tcph = (void *) iph + sizeof(struct iphdr);
                 if ((void *)(tcph + 1) > data_end)
                 {
-                    return XDP_ABORTED;
+                    return XDP_DROP;
                 }
                 /* Get the source and destination ports */
                 ipv4_pkt.src_port = bpf_ntohs(tcph->source);
@@ -165,7 +185,7 @@ int xdp_firewall(struct xdp_md *ctx)
                 struct udphdr *udph = (void *) iph + sizeof(struct iphdr);
                 if ((void *)(udph + 1) > data_end)
                 {
-                    return XDP_ABORTED;
+                    return XDP_DROP;
                 }
                 /* Get the source and destination ports */
                 ipv4_pkt.src_port = bpf_ntohs(udph->source);
@@ -177,11 +197,14 @@ int xdp_firewall(struct xdp_md *ctx)
         };
         struct IPv4Rule *ipv4_rule = (void *)0;
         __u32 key;
-        for (__u32 i = 0; i < 100; i++)
+        for (__u32 i = 0; i < 500; i++)
         {
             key = i;
             if(check_ipv4_rule(&ipv4_rules, &key, ipv4_rule, &ipv4_lookup))
-                return ipv4_lookup.allow ? XDP_PASS : XDP_DROP;
+                {
+                    permitted = ipv4_lookup.allow;
+                    break;
+                }
         }
     }
     else if (eth->h_proto == bpf_htons(ETH_P_IPV6)) {
@@ -192,7 +215,7 @@ int xdp_firewall(struct xdp_md *ctx)
         struct ipv6hdr *ip6h = data + sizeof(struct ethhdr);
         if ((void *)(ip6h + 1) > data_end)
         {
-            return XDP_ABORTED;
+            return XDP_DROP;
         }
         /* Get the source and destination IPs */
         ipv6_pkt.src_ip = ip6h->saddr;
@@ -208,7 +231,7 @@ int xdp_firewall(struct xdp_md *ctx)
                 struct tcphdr *tcph = (void *) ip6h + sizeof(struct ipv6hdr);
                 if ((void *)(tcph + 1) > data_end)
                 {
-                    return XDP_ABORTED;
+                    return XDP_DROP;
                 }
                 /* Get the source and destination ports */
                 ipv6_pkt.src_port = bpf_ntohs(tcph->source);
@@ -219,7 +242,7 @@ int xdp_firewall(struct xdp_md *ctx)
                 struct udphdr *udph = (void *) ip6h + sizeof(struct ipv6hdr);
                 if ((void *)(udph + 1) > data_end)
                 {
-                    return XDP_ABORTED;
+                    return XDP_DROP;
                 }
                 /* Get the source and destination ports */
                 ipv6_pkt.src_port = bpf_ntohs(udph->source);
@@ -231,15 +254,36 @@ int xdp_firewall(struct xdp_md *ctx)
         };
         struct IPv6Rule *ipv6_rule = (void *)0;
         __u32 key;
-        for (__u32 i = 0; i < 100; i++)
+        for (__u32 i = 0; i < 10; i++)
         {
             key = i;
             if(check_ipv6_rule(&ipv6_rules, &key, ipv6_rule, &ipv6_lookup))
-                return ipv6_lookup.allow ? XDP_PASS : XDP_DROP;
+                {
+                    permitted = ipv6_lookup.allow;
+                    break;
+                }
         }
     }
-
-    /* Allow the packet */
+    else {
+        /* Allow the packet */
+        return XDP_PASS;
+    }
+    if (permitted) {
+        /* Check that source MAC is that of MoonGen sender
+           and destination MAC is that of the NIC running the XDP prog*/
+            if (!(_strcmp(eth->h_source, source_mac, ETH_ALEN) 
+                || _strcmp(eth->h_dest, my_mac, ETH_ALEN))) {
+                /* Swap MAC addresses as appropriate */
+                __builtin_memcpy(eth->h_source, my_mac, ETH_ALEN);
+                __builtin_memcpy(eth->h_dest, target_mac, ETH_ALEN);
+                /* Send packet to new destination */
+                return XDP_TX;
+            }
+    }
+    else {
+        /* Implicit "DENY" rule at the end */
+        return XDP_DROP;
+    }
     return XDP_PASS;
 }
 char _license[] SEC("license") = "GPL";
