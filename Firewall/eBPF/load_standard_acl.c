@@ -8,7 +8,6 @@
 #include <arpa/inet.h>
 #include <dirent.h>
 
-// #define IFNAME "xdptut-09b3"
 #define IFNAME "enp1s0f1"
 
 #define PATH "./standard_acl_kern.o"
@@ -151,12 +150,13 @@ int main(int argc, char **argv)
     bpf_object_pin_maps(bobj, "/sys/fs/bpf/xdp_standard_acl/");
 
     // bpf_xdp_detach(ifindex, XDP_FLAGS_SKB_MODE, 0);
-    bpf_xdp_detach(ifindex, XDP_FLAGS_DRV_MODE, 0);
+    // bpf_xdp_detach(ifindex, XDP_FLAGS_DRV_MODE, 0);
 
     bpf_object__close(bobj);
 
     return 0;
 }
 
-// clang -Wall -I ../../libbpf/include -o load_standard_acl.out load_standard_acl.c -L ../../libbpf/src -lbpf -lelf
 // clang -Wall -o load_standard_acl.out load_standard_acl.c -lbpf -lelf
+// OR, if you haven't copied the build artifacts under /usr/local/include and /usr/local/lib:
+// clang -Wall -I ../../libbpf/include -o load_standard_acl.out load_standard_acl.c -L ../../libbpf/src -lbpf -lelf

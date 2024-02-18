@@ -2,16 +2,18 @@
 #include <bpf/bpf_helpers.h>
 #include <linux/if_ether.h>
 #include <linux/ip.h>
-#include <linux/types.h>
 #include <linux/in.h>
 #include <linux/ipv6.h>
 #include <bpf/bpf_endian.h>
 
-// 90:e2:ba:f7:32:69
+// MAC address of the interface running this XDP program
+// In the example case 90:e2:ba:f7:32:69
 unsigned char my_mac[] = {0x90, 0xe2, 0xba, 0xf7, 0x32, 0x69};
-// 90:E2:BA:F7:30:1D
+// MAC address of the interface we are receiving the packets from
+// In the example case 90:E2:BA:F7:30:1D
 unsigned char source_mac[] = {0x90, 0xe2, 0xba, 0xf7, 0x30, 0x1d};
-// 90:E2:BA:F7:31:CD
+// MAC address of the interface we will forward the packets to
+// In the example case 90:E2:BA:F7:31:CD
 unsigned char target_mac[] = {0x90, 0xe2, 0xba, 0xf7, 0x31, 0xcd};
 
 static __always_inline int _strcmp (const unsigned char *buf1, const unsigned char *buf2, unsigned long size) {
@@ -139,3 +141,5 @@ int xdp_standard_acl(struct xdp_md *ctx)
 char _license[] SEC("license") = "GPL";
 
 // clang -O2 -g -Wall -target bpf -c standard_acl_kern.c -o standard_acl_kern.o
+// OR, if you haven't installed the kernel headers:
+// clang -O2 -g -Wall -target bpf -I ../../libbpf/include/uapi -c standard_acl_kern.c -o standard_acl_kern.o
